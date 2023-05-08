@@ -1,0 +1,36 @@
+esphome:
+  name: esphome-web-a285f3
+
+esp8266:
+  board: nodemcuv2
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esphome-Web-A285F3"
+    password: "9WCg8mYiogPo"
+
+captive_portal:
+    
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: D2
+      mode: INPUT_PULLUP
+      inverted: False
+    name: "Doorbell"
+    filters:
+      - delayed_on: 10ms

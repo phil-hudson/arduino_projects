@@ -1,0 +1,33 @@
+esphome:
+  name: esphome-web-a285f3
+  platform: ESP8266
+  board: nodemcuv2
+
+# Example configuration entry
+wifi:
+  # ...
+  ap:
+    ssid: "Temperature Sensor Hotspot"
+    password: ""
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+# DHT11 Temperature & Humidity Sensor
+sensor:
+  - platform: dht
+    pin: D2
+    temperature:
+      name: "Temperature"
+      accuracy_decimals: 0
+      
+    humidity:
+      name: "Humidity"
+    update_interval: 60s
