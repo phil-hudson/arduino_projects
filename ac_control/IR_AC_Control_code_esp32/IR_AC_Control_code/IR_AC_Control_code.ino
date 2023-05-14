@@ -4,6 +4,7 @@
 #include <IRrecv.h> // https://github.com/crankyoldgit/IRremoteESP8266/blob/master/src/IRrecv.h
 #include <EEPROM.h>
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+#include <IRutils.h>
 
 // CONFIGURATION PART *************************************************************************
 
@@ -220,9 +221,9 @@ void setup() {
 
   // TODO confirm wifi is connected before changing state led
 
-  Serial.println("CONNECTING_HOMEKIT");
-  device_state = CONNECTING_HOMEKIT;
-  handleLEDs();
+  // Serial.println("CONNECTING_HOMEKIT");
+  // device_state = CONNECTING_HOMEKIT;
+  // handleLEDs();
   // todo test uncomment homekit due to panic
 //  my_homekit_setup();
   
@@ -357,6 +358,16 @@ void setup() {
   // End led handling
   //==============================
 
+
+  void send_ac_on_command() {
+
+    uint16_t* irCode = readOnIRCodeFromEEPROM();
+    Serial.println(sizeof(*irCode));
+    Serial.println(ESP.getFreeHeap());
+    irsend.sendRaw(irCode, sizeof(*irCode), kFrequency);  // Send a raw data capture at 38kHz.
+    Serial.println(F("AC Switched On"));
+ }
+
   //==============================
   // Start button handling
   //==============================
@@ -383,22 +394,27 @@ void setup() {
     } else if (lastButtonState == HIGH && currentButtonState == LOW) {  // button is released
       isPressing = false;
       long pressDuration = millis() - pressedTime;
-      LOG_D("press duration: %d",
-            pressDuration);
+      Serial.println("press duration: ");
+      Serial.print(pressDuration);
 
       if (pressDuration > LONG_PRESS_TIME && pressDuration <= RESET_PRESS_TIME) {
         Serial.println("A long press is detected, should go to control pairing mode");
         startIRPairing();
         isLongDetected = true;
       } else if (pressDuration > RESET_PRESS_TIME) {
-        Serial.println("Hard reset is detected");
-        startHardReset();
+        Serial.println("press > reset press time, doing action");
+        // TODO: for testing, change this to dispatch the IR instead of through HA
+        send_ac_on_command();
+
+        // Serial.println("Hard reset is detected");
+        // startHardReset();
       }
     }
 
     // save the the last state
     lastButtonState = currentButtonState;
   }
+
 
   void clearEEPROM() {
     // this assumes we store from 0 to 2000 position
@@ -467,7 +483,8 @@ void setup() {
         Serial.println(length);
 
         // arbritary number, use to avoid random noise signals
-        if (length > 100) {
+        // NOTE: currently set to 1 for testing, used to be 100
+        if (length > 1) { 
           // only mark as result recieved if the result is of a good length
           irLastResultTime = millis();
           hadResult = true;
@@ -497,9 +514,9 @@ void setup() {
     }
     getIR = false;
     // we have input for on button
-//    uint16_t* onIRCode = resultToRawArray(&results);
+     uint16_t* onIRCode = resultToRawArray(&results);
 
- uint64_t* onIRCode = &results.value;
+//  uint64_t* onIRCode = &results.value;
     Serial.println("on ircode size");
     Serial.println(sizeof(onIRCode));
     
@@ -507,7 +524,7 @@ void setup() {
     Serial.println("Captured IR for ON");
 //    Serial.println(onLength);
   //  EEPROM.write(irOnLengthEEPROMLocation, onLength);
-   // writeIRDataToEEPROM(&onIRCode, onLength, 1408, 1000);
+   writeIRDataToEEPROM(&onIRCode, sizeof(onIRCode), 1408, 500);
 
     // pair the off button of the remote
     device_state = PAIRING_OFF;
@@ -518,8 +535,7 @@ void setup() {
       // wait for input
     }
     // we have input for on button
-//    uint16_t* offIRCode = resultToRawArray(&results);
- uint64_t* offIRCode = &results.value;
+   uint16_t* offIRCode = resultToRawArray(&results);
 
     Serial.println("on offIRCode size");
     Serial.println(sizeof(offIRCode));
@@ -530,7 +546,7 @@ void setup() {
 
     //EEPROM.write(irOffLengthEEPROMLocation, offLength);
     // todo uncomment write
-//    writeIRDataToEEPROM(&offIRCode, offLength, 2408, 1000);
+    writeIRDataToEEPROM(&offIRCode, sizeof(offIRCode), 2408, 1000);
     device_state = SUCCESS;
     delay(1000);
     device_state = GOOD;
@@ -549,35 +565,30 @@ void setup() {
     Serial.println("Written data to EEPROM");
   }
 
-  uint16_t* readOnIRCodeFromEEPROM() {
-    Serial.println("start");
+uint16_t* readOnIRCodeFromEEPROM() {
+  Serial.println("start");
 
-    // TODO errors within this bit
-    //Exception 9: LoadStoreAlignmentCause: Load or store to an unaligned address
-    // uint16_t* data; // old
+  uint16_t* data = new uint16_t[500]; // Allocate memory for the data
 
-    uint16_t* data[500]; // new chat gpt suggestion
+  EEPROM.begin(1000);
 
-    //  int len = EEPROM.read(irOnLengthEEPROMLocation);
-    //   EEPROM.begin(len);
-    EEPROM.begin(1000);
+  Serial.println("read");
 
-    Serial.println("allocate");
+  EEPROM.get(1408, data); // Read the data from EEPROM
 
-    EEPROM.get(1408, data);
-    //  eeprom_load(1408, data, 1000);
+  Serial.println("done");
 
-    return data;
-  }
+  return data;
+}
 
   uint16_t* readOffIRCodeFromEEPROM() {
     // uint16_t* data; // old
-    uint16_t* data[500]; // new chat gpt suggestion
+    uint16_t*  data = new uint16_t[500];  // new chat gpt suggestion
 
     int len = EEPROM.read(irOffLengthEEPROMLocation);
     EEPROM.begin(len);
 
-    eeprom_load(2408, data, len);
+  EEPROM.get(2408, data); // Read the data from EEPROM
 
     return data;
   }
