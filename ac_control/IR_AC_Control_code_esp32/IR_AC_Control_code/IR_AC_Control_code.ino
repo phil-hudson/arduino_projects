@@ -187,6 +187,8 @@ void setup() {
 
   Serial.begin(115200);       // Start a serial connection so you can receive HomeSpan diagnostics and control the device using HomeSpan's Command-Line Interface (CLI)
 
+  EEPROM.begin(3000);
+
   delay(2000);
   while (!Serial)
     ;  //delay for Leonardo
@@ -358,11 +360,11 @@ void setup() {
   // End led handling
   //==============================
 
-
+// FIXME: problem looks like it is only sending the first index of the array from irCode
   void send_ac_on_command() {
-
     uint16_t* irCode = readOnIRCodeFromEEPROM();
     Serial.println(sizeof(*irCode));
+    printUint16Array(irCode, sizeof(irCode));
     Serial.println(ESP.getFreeHeap());
     irsend.sendRaw(irCode, sizeof(*irCode), kFrequency);  // Send a raw data capture at 38kHz.
     Serial.println(F("AC Switched On"));
@@ -372,8 +374,8 @@ void setup() {
   // Start button handling
   //==============================
 
-  const int LONG_PRESS_TIME = 5000;    // ms
-  const int RESET_PRESS_TIME = 10000;  // ms
+  const int LONG_PRESS_TIME = 3000;    // ms
+  const int RESET_PRESS_TIME = 5000;  // ms
 
   // Variables will change:
   int lastButtonState;     // the previous state from the input pin
@@ -473,18 +475,19 @@ void setup() {
 
         // TODO this isnt working
         // TODO use results.value
-//        uint16_t* raw_array = resultToRawArray(&results);
         // Find out how many elements are in the array.
-//        uint16_t length = getCorrectedRawLength(&results);
-
-//        uint64_t ir_data = results.value;
-        uint16_t length = sizeof(results.value); // todo obviously remove
+        uint16_t* raw_array = resultToRawArray(&results);
+        uint16_t length = getCorrectedRawLength(&results);
         Serial.println("Captured IR");
-        Serial.println(length);
+        Serial.println("length ");
+        Serial.print(length);
+
+        // Serial.println("raw array sizeof");
+        // Serial.println(sizeof(raw_array));
 
         // arbritary number, use to avoid random noise signals
-        // NOTE: currently set to 1 for testing, used to be 100
-        if (length > 1) { 
+        // NOTE: currently set to 50 for testing, used to be 100
+        if (length > 50) { 
           // only mark as result recieved if the result is of a good length
           irLastResultTime = millis();
           hadResult = true;
@@ -515,11 +518,14 @@ void setup() {
     getIR = false;
     // we have input for on button
      uint16_t* onIRCode = resultToRawArray(&results);
+     uint16_t onLength = getCorrectedRawLength(&results);
 
 //  uint64_t* onIRCode = &results.value;
     Serial.println("on ircode size");
-    Serial.println(sizeof(onIRCode));
-    
+    Serial.println(onLength);
+    printUint16Array(onIRCode, sizeof(onIRCode));
+
+
 //    uint16_t onLength = getCorrectedRawLength(&results);
     Serial.println("Captured IR for ON");
 //    Serial.println(onLength);
@@ -536,9 +542,12 @@ void setup() {
     }
     // we have input for on button
    uint16_t* offIRCode = resultToRawArray(&results);
+   uint16_t offLength = getCorrectedRawLength(&results);
+
 
     Serial.println("on offIRCode size");
-    Serial.println(sizeof(offIRCode));
+    Serial.println(offLength);
+printUint16Array(offIRCode, sizeof(offIRCode));
     
     //uint16_t offLength = getCorrectedRawLength(&results);
     Serial.println("Captured IR for OFF");
@@ -546,7 +555,7 @@ void setup() {
 
     //EEPROM.write(irOffLengthEEPROMLocation, offLength);
     // todo uncomment write
-    writeIRDataToEEPROM(&offIRCode, sizeof(offIRCode), 2408, 1000);
+    writeIRDataToEEPROM(&offIRCode, sizeof(offIRCode), 2408, 500);
     device_state = SUCCESS;
     delay(1000);
     device_state = GOOD;
@@ -560,81 +569,77 @@ void setup() {
       return;
     }
 
-    eeprom_save(0, *irCode, irLength);
+    eeprom_save(eepromStartAddress, *irCode);
 
     Serial.println("Written data to EEPROM");
   }
 
 uint16_t* readOnIRCodeFromEEPROM() {
-  Serial.println("start");
+  const int addr = 1408;
 
-  uint16_t* data = new uint16_t[500]; // Allocate memory for the data
-
-  EEPROM.begin(1000);
-
+const int dataSize = 500;
+  uint16_t* data = new uint16_t[dataSize]; // Allocate memory for the data
   Serial.println("read");
+      // TODO: set 1408 as const location
 
-  EEPROM.get(1408, data); // Read the data from EEPROM
 
-  Serial.println("done");
+    for (int i = 0; i < dataSize; i++) {
+    uint8_t lowByte = EEPROM.read(addr + i * 2); // Read the low byte
+    uint8_t highByte = EEPROM.read(addr + i * 2 + 1); // Read the high byte
+    data[i] = (highByte << 8) | lowByte; // Combine the low and high bytes
+  }
+    Serial.println("done");
 
   return data;
 }
 
   uint16_t* readOffIRCodeFromEEPROM() {
-    // uint16_t* data; // old
-    uint16_t*  data = new uint16_t[500];  // new chat gpt suggestion
+      const int addr = 2408;
 
-    int len = EEPROM.read(irOffLengthEEPROMLocation);
-    EEPROM.begin(len);
+const int dataSize = 500;
 
-  EEPROM.get(2408, data); // Read the data from EEPROM
+    uint16_t*  data = new uint16_t[dataSize];  
+    // TODO: set 2408 as const location
+
+    for (int i = 0; i < dataSize; i++) {
+    uint8_t lowByte = EEPROM.read(addr + i * 2); // Read the low byte
+    uint8_t highByte = EEPROM.read(addr + i * 2 + 1); // Read the high byte
+    data[i] = (highByte << 8) | lowByte; // Combine the low and high bytes
+  }
 
     return data;
   }
 
-  //
-  // https://stackoverflow.com/questions/66077317/how-to-encapsulate-eeprom-put-and-eeprom-get-in-own-functions-arduino-c-esp
-  //
+  void eeprom_save(uint addr, uint16_t *data) {
+    Serial.println("saving to eeprom");
+  for (uint16_t i = 0; i < sizeof(data); ++i) {
+    Serial.println("step " + String(i));
+        Serial.println(data[i]);
 
-  void eeprom_save(uint addr, uint16_t *data, uint len) {
-    EEPROM.begin(len);
-    for (uint i = 0; i < len; i++) {
-      EEPROM.put(addr + i, data[i]);
-    }
-    EEPROM.commit();
-    EEPROM.end();
+    EEPROM.write(addr + i * sizeof(uint16_t), lowByte(data[i])); // Write the low byte
+    EEPROM.write(addr + i * sizeof(uint16_t) + 1, highByte(data[i])); // Write the high byte
   }
 
-  void eeprom_load(uint addr, uint16_t *data, uint len) {
-    EEPROM.begin(len);
-    for (uint i = 0; i < len; i++) {
-      EEPROM.get(addr + i, data[i]);
-    }
-    EEPROM.end();
+  EEPROM.commit(); // Commit the changes to EEPROM
+
+    // EEPROM.put(addr, data);
+    // EEPROM.commit();
   }
 
-  //
-  // https://stackoverflow.com/questions/66077317/how-to-encapsulate-eeprom-put-and-eeprom-get-in-own-functions-arduino-c-esp
-  //
 
-
-  int readOffIRCodeLenthFromEEPROM() {
-    int len;
-    EEPROM.get(irOffLengthEEPROMLocation, len);
-    return len;
-  }
-
-  int readOnIRCodeLenthFromEEPROM() {
-    int len;
-    EEPROM.get(irOnLengthEEPROMLocation, len);
-    return len;
-  }
 
   //==============================
   // End IR Recieve handling
   //==============================
 
+
+void printUint16Array(uint16_t* array, size_t size) {
+  for (size_t i = 0; i < size; ++i) {
+    Serial.print(array[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
 
 
   void loop() {
