@@ -21,23 +21,43 @@ Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID,
                    false); // steering wheel
 
 
+// LEONARDO DEV BOARD PINS:
+// static int totalPins = 13;
+// int oldPinValues[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+// int pinValues[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+// int pinsInUse[13] = {0,0,1,1,1,1,1,1,1,1,1,1,1};
 
-static int totalPins = 13;
-int oldPinValues[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
-int pinValues[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
-int pinsInUse[13] = {0,0,1,1,1,1,1,1,1,1,1,1,1};
+// PRO MICRO LEONARDO PINS:
+static int totalPins = 21;
+int oldPinValues[21] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int pinValues[21] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+int pinsInUse[21] = {0,0,1,1,1,1,1,1,1,0,0,0,0,0,1,0,1,0,0,0,0};
 
 void setup() {
+// LEONARDO DEV BOARD PINS:
+// pinMode (3, INPUT);
+// pinMode (4, INPUT);
+// pinMode (5, INPUT);
+// pinMode (6, INPUT);
+// pinMode (7, INPUT);
+// pinMode (8, INPUT);
+// pinMode (9, INPUT);
+// pinMode (10, INPUT);
+// pinMode (11, INPUT);
+// pinMode (12, INPUT);
+
+// PRO MICRO LEONARDO PINS:
+pinMode (0, INPUT);
+pinMode (1, INPUT);
+pinMode (2, INPUT);
 pinMode (3, INPUT);
 pinMode (4, INPUT);
 pinMode (5, INPUT);
 pinMode (6, INPUT);
 pinMode (7, INPUT);
 pinMode (8, INPUT);
-pinMode (9, INPUT);
-pinMode (10, INPUT);
-pinMode (11, INPUT);
-pinMode (12, INPUT);
+pinMode (14, INPUT);
+pinMode (16, INPUT);
 
 // todo off by 1
 //  for (int i = 1; i < 12; i++) {
